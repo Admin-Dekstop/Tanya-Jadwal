@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> Jadwal Digital dengan Asisten AI - SMPN 2 Ampana Kota</title>
+    <title>Jadwal Digital dengan Asisten AI - SMPN 2 Ampana Kota</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -75,11 +75,14 @@
                 </div>
 
                 <!-- Controls -->
-                <div class="mb-6">
+                <div class="mb-6 bg-gray-800/50 p-4 rounded-xl border border-gray-700">
                     <label for="class-selector" class="block mb-2 text-sm font-medium text-gray-300">Pilih Kelas Anda:</label>
                     <select id="class-selector" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
                         <!-- Options populated by JS -->
                     </select>
+                    <div id="wali-kelas-info" class="mt-3 text-gray-300">
+                        <!-- Info will be populated by JS -->
+                    </div>
                 </div>
 
                 <!-- Schedule Display -->
@@ -93,7 +96,7 @@
                 <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-gray-700 flex-grow flex flex-col h-[60vh] lg:h-auto">
                     <div class="p-4 border-b border-gray-700">
                         <h2 class="text-xl font-bold text-white">Asisten AI Jadwal</h2>
-                        <p class="text-sm text-gray-400">Tanya apapun tentang jadwal!</p>
+                        <p class="text-sm text-gray-400">Tanya apapun tentang jadwal & wali kelas!</p>
                     </div>
                     <div id="chat-history" class="p-4 flex-grow overflow-y-auto space-y-4">
                         <!-- Chat messages will be appended here -->
@@ -113,7 +116,7 @@
                              <button id="save-api-key" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Simpan</button>
                         </div>
                         <div class="flex items-center gap-2">
-                            <input type="text" id="chat-input" placeholder="Contoh: Guru SB mengajar dimana?" class="flex-grow bg-gray-700 border border-gray-600 text-white text-sm rounded-lg p-2.5 focus:ring-blue-500 focus:border-blue-500" disabled>
+                            <input type="text" id="chat-input" placeholder="Contoh: Siapa wali kelas VII A?" class="flex-grow bg-gray-700 border border-gray-600 text-white text-sm rounded-lg p-2.5 focus:ring-blue-500 focus:border-blue-500" disabled>
                             <button id="send-chat" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg" disabled>
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
                             </button>
@@ -128,6 +131,21 @@
         // --- DATA JADWAL & GURU ---
         const teacherData = {
             'KU': 'Karmina Usman, S.Pd', 'NP': 'Nurtin Panende, S.Pd', 'MS': 'Masitha, S.Pd', 'SM': 'Slamet San Mukyat, S.Pd', 'AM': 'Ardianto M. Manggarai', 'EL': 'Elya, S.Pd', 'BG': 'Basaria Gue, S.Pd', 'BG1': 'Basaria Gue, S.Pd', 'DW': 'Dewisanti M. Usman, S.Pd', 'HB': 'Harlina Baso, S.Pd', 'SB': 'Sofyan Bonau, S.Pd', 'RB': 'Rikman Bega, S.Pd', 'SH': 'Sahra, S.Pd', 'RK': 'Rahmat Syahrudin Kuengo, S.Pd', 'AJ': 'Abdul Jalil, S.Pd', 'ST': 'Setiawan, S.Pd', 'ST1': 'Setiawan, S.Pd', 'SL': 'Suhartin Lantamu, S.Pd', 'SG': 'Sugianto, S.Pd', 'SR': 'Surianto, S.Pd', 'UT': 'Ukhrawaty Taiya, S.Kom', 'MT': 'Moh. Triyanto S. Untuba, S.Pd', 'AS': 'Ahyar M. Sumu, S.Pd', 'TS': 'Taslim N. Siparante, S.Pd.I', 'SF': 'Safira J. Labolo, S.Pd', 'NW': 'Nurwahyuni, S.Pd', 'P5': 'Semua Guru', 'NL': 'Nurafni Lawala, S.Pd'
+        };
+
+        const waliKelasData = {
+            'VII A': 'Sofyan Bonau, S.Pd',
+            'VII B': 'Rahmat Syahrudin Kuengo, S.Pd',
+            'VII C': 'Abdul Jalil, S.Pd',
+            'VII D': 'Moh. Triyanto S. Untuba, S.Pd',
+            'VIII A': 'Surianto, S.Pd',
+            'VIII B': 'Setiawan, S.Pd',
+            'VIII C': 'Basaria Gue, S.Pd',
+            'VIII D': 'Ahyar M. Sumu, S.Pd',
+            'IX A': 'Masitha, S.Pd',
+            'IX B': 'Nurafni Lawala, S.Pd',
+            'IX C': 'Sugianto, S.Pd',
+            'IX D': 'Suhartin Lantamu, S.Pd'
         };
 
         const scheduleData = {
@@ -228,7 +246,6 @@
                 { period: '6-7', time: '11:05-12:25', class: 'IX D', subject: 'IPS', teacher: 'MS' },
                 { period: '-', time: '12:25-13:10', subject: 'SHOLAT', teacher: '', all: true },
             ],
-            // Data untuk hari Rabu, Kamis, Jumat, Sabtu tetap sama, hanya ditambahkan 'period'
             'Rabu': [
                 { period: '-', time: '07:00-07:15', subject: 'APEL PAGI', all: true },
                 { period: '1-3', time: '07:15-09:15', class: 'VII A', subject: 'PRJK P5', teacher: 'P5' },
@@ -434,6 +451,7 @@
         const currentPeriodElement = document.getElementById('current-period');
         const classSelector = document.getElementById('class-selector');
         const scheduleContainer = document.getElementById('schedule-container');
+        const waliKelasInfo = document.getElementById('wali-kelas-info');
         const apiKeyInput = document.getElementById('api-key-input');
         const saveApiKeyButton = document.getElementById('save-api-key');
         const chatInput = document.getElementById('chat-input');
@@ -519,13 +537,19 @@
             }
         }
 
+        function updateWaliKelasInfo() {
+            const selectedClass = classSelector.value;
+            const waliKelasName = waliKelasData[selectedClass] || 'Tidak ada data';
+            waliKelasInfo.innerHTML = `Wali Kelas: <span class="font-semibold text-white">${waliKelasName}</span>`;
+        }
+
         function appendToChat(message, sender) {
             const bubble = document.createElement('div');
             bubble.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
             
             const content = document.createElement('div');
             content.className = `${sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-gemini'} rounded-lg px-4 py-2 max-w-xs break-words`;
-            content.textContent = message;
+            content.innerHTML = message; // Use innerHTML to render potential markdown
 
             bubble.appendChild(content);
             chatHistory.appendChild(bubble);
@@ -561,6 +585,9 @@
                 KONTEKS SAAT INI:
                 - Hari: ${currentDayName}
                 - Jam: ${currentTime}
+
+                DATA WALI KELAS (JSON):
+                ${JSON.stringify(waliKelasData)}
 
                 DATA JADWAL (JSON):
                 ${JSON.stringify(scheduleData)}
@@ -642,11 +669,13 @@
                 const now = new Date();
                 renderSchedule(classSelector.value, now);
                 updateTimeAndSchedule();
+                updateWaliKelasInfo();
             });
 
             const now = new Date();
             renderSchedule(classSelector.value, now);
             updateTimeAndSchedule();
+            updateWaliKelasInfo();
 
             setInterval(updateTimeAndSchedule, 1000);
         }
