@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title> Jadwal Digital dengan Asisten AI - SMPN 2 Ampana Kota</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Orbitron:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #111827; /* bg-gray-900 */
+            color: #f3f4f6; /* text-gray-200 */
+        }
+        .font-orbitron {
+            font-family: 'Orbitron', sans-serif;
+        }
+        .highlight-card {
+            background-color: #3b82f6; /* bg-blue-600 */
+            color: white;
+            transform: scale(1.03);
+            box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3), 0 4px 6px -2px rgba(59, 130, 246, 0.2);
+        }
+        .schedule-card {
+            transition: all 0.3s ease-in-out;
+        }
+        #chat-history::-webkit-scrollbar { width: 6px; }
+        #chat-history::-webkit-scrollbar-track { background: #1f2937; }
+        #chat-history::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 10px; }
+        #chat-history::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+        .chat-bubble-user { background-color: #3b82f6; }
+        .chat-bubble-gemini { background-color: #374151; }
+        .loader {
+            width: 20px;
+            height: 20px;
+            border: 3px solid #4f46e5;
+            border-bottom-color: transparent;
+            border-radius: 50%;
+            display: inline-block;
+            box-sizing: border-box;
+            animation: rotation 1s linear infinite;
+        }
+        @keyframes rotation {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <div class="min-h-screen container mx-auto p-4 sm:p-6 lg:p-8 flex flex-col">
+        <!-- Header -->
+        <header class="text-center mb-6">
+            <h1 class="text-3xl sm:text-4xl font-bold text-white">Jadwal Pelajaran Digital</h1>
+            <p class="text-lg text-gray-400">SMP Negeri 2 Ampana Kota T.A. 2025/2026</p>
+        </header>
+
+        <div class="flex flex-col lg:flex-row gap-6">
+            <!-- Left Column: Schedule -->
+            <div class="lg:w-2/3 w-full">
+                <!-- Live Info Section -->
+                <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 mb-6 shadow-lg border border-gray-700">
+                    <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                        <div class="text-center sm:text-left">
+                            <p id="current-day" class="text-xl font-semibold text-blue-400"></p>
+                            <p id="live-clock" class="font-orbitron text-5xl sm:text-6xl font-bold tracking-wider text-white"></p>
+                        </div>
+                        <div id="current-activity" class="text-center sm:text-right bg-gray-700/50 rounded-lg p-4 w-full sm:w-auto">
+                            <p class="text-gray-300 text-sm mb-1">Kegiatan Saat Ini (Jam Ke-<span id="current-period">-</span>):</p>
+                            <p id="current-subject" class="font-semibold text-lg text-white">-</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="mb-6">
+                    <label for="class-selector" class="block mb-2 text-sm font-medium text-gray-300">Pilih Kelas Anda:</label>
+                    <select id="class-selector" class="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full p-2.5">
+                        <!-- Options populated by JS -->
+                    </select>
+                </div>
+
+                <!-- Schedule Display -->
+                <main id="schedule-container" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-2 gap-4">
+                    <!-- Schedule cards will be injected here -->
+                </main>
+            </div>
+
+            <!-- Right Column: AI Assistant -->
+            <div class="lg:w-1/3 w-full flex flex-col">
+                <div class="bg-gray-800/50 backdrop-blur-sm rounded-xl shadow-lg border border-gray-700 flex-grow flex flex-col h-[60vh] lg:h-auto">
+                    <div class="p-4 border-b border-gray-700">
+                        <h2 class="text-xl font-bold text-white">Asisten AI Jadwal</h2>
+                        <p class="text-sm text-gray-400">Tanya apapun tentang jadwal!</p>
+                    </div>
+                    <div id="chat-history" class="p-4 flex-grow overflow-y-auto space-y-4">
+                        <!-- Chat messages will be appended here -->
+                        <div class="flex justify-start">
+                            <div class="chat-bubble-gemini rounded-lg px-4 py-2 max-w-xs">
+                               <p>Halo! Silakan masukkan API Key Gemini Anda di bawah untuk memulai. Saya bisa bantu menjawab pertanyaan seputar jadwal.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="gemini-response-loader" class="p-4 hidden items-center gap-3">
+                        <div class="loader"></div>
+                        <p class="text-gray-400">Asisten sedang berpikir...</p>
+                    </div>
+                    <div class="p-4 border-t border-gray-700">
+                        <div class="flex items-center gap-2 mb-2">
+                             <input type="password" id="api-key-input" placeholder="Masukkan API Key Gemini Anda" class="flex-grow bg-gray-700 border border-gray-600 text-white text-sm rounded-lg p-2.5 focus:ring-blue-500 focus:border-blue-500">
+                             <button id="save-api-key" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-lg">Simpan</button>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="text" id="chat-input" placeholder="Contoh: Guru SB mengajar dimana?" class="flex-grow bg-gray-700 border border-gray-600 text-white text-sm rounded-lg p-2.5 focus:ring-blue-500 focus:border-blue-500" disabled>
+                            <button id="send-chat" class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-lg" disabled>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-5 h-5"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DATA JADWAL & GURU ---
+        const teacherData = {
+            'KU': 'Karmina Usman, S.Pd', 'NP': 'Nurtin Panende, S.Pd', 'MS': 'Masitha, S.Pd', 'SM': 'Slamet San Mukyat, S.Pd', 'AM': 'Ardianto M. Manggarai', 'EL': 'Elya, S.Pd', 'BG': 'Basaria Gue, S.Pd', 'BG1': 'Basaria Gue, S.Pd', 'DW': 'Dewisanti M. Usman, S.Pd', 'HB': 'Harlina Baso, S.Pd', 'SB': 'Sofyan Bonau, S.Pd', 'RB': 'Rikman Bega, S.Pd', 'SH': 'Sahra, S.Pd', 'RK': 'Rahmat Syahrudin Kuengo, S.Pd', 'AJ': 'Abdul Jalil, S.Pd', 'ST': 'Setiawan, S.Pd', 'ST1': 'Setiawan, S.Pd', 'SL': 'Suhartin Lantamu, S.Pd', 'SG': 'Sugianto, S.Pd', 'SR': 'Surianto, S.Pd', 'UT': 'Ukhrawaty Taiya, S.Kom', 'MT': 'Moh. Triyanto S. Untuba, S.Pd', 'AS': 'Ahyar M. Sumu, S.Pd', 'TS': 'Taslim N. Siparante, S.Pd.I', 'SF': 'Safira J. Labolo, S.Pd', 'NW': 'Nurwahyuni, S.Pd', 'P5': 'Semua Guru', 'NL': 'Nurafni Lawala, S.Pd'
+        };
+
+        const scheduleData = {
+            'Senin': [
+                { period: 1, time: '07:15-07:40', subject: 'UPACARA BENDERA', teacher: '', all: true },
+                { period: '2-4', time: '07:40-09:40', class: 'VII A', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '2-4', time: '07:40-09:40', class: 'VII B', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '2-4', time: '07:40-09:40', class: 'VII C', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '2-4', time: '07:40-09:40', class: 'VII D', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '2-3', time: '07:40-09:00', class: 'VIII A', subject: 'PJOK', teacher: 'SM' },
+                { period: 2, time: '07:40-08:20', class: 'VIII B', subject: 'PAI', teacher: 'RK' },
+                { period: 3, time: '08:20-09:00', class: 'VIII B', subject: 'TIK', teacher: 'BG' },
+                { period: '2-3', time: '07:40-09:00', class: 'VIII C', subject: 'BINDO', teacher: 'SR' },
+                { period: '2-3', time: '07:40-09:00', class: 'VIII D', subject: 'PJOK', teacher: 'SG' },
+                { period: '2-3', time: '07:40-09:00', class: 'IX A', subject: 'PKN', teacher: 'DW' },
+                { period: '2-3', time: '07:40-09:00', class: 'IX B', subject: 'IPA', teacher: 'EL' },
+                { period: '2-3', time: '07:40-09:00', class: 'IX C', subject: 'BIND', teacher: 'SL' },
+                { period: 4, time: '09:00-09:40', class: 'VIII A', subject: 'IPA', teacher: 'AS' },
+                { period: 4, time: '09:00-09:40', class: 'VIII B', subject: 'BINDO', teacher: 'SR' },
+                { period: 4, time: '09:00-09:40', class: 'VIII C', subject: 'PKN', teacher: 'NP' },
+                { period: 4, time: '09:00-09:40', class: 'VIII D', subject: 'MTK', teacher: 'HB' },
+                { period: 4, time: '09:00-09:40', class: 'IX A', subject: 'IPA', teacher: 'KU' },
+                { period: 4, time: '09:00-09:40', class: 'IX B', subject: 'PAI', teacher: 'ST' },
+                { period: 4, time: '09:00-09:40', class: 'IX C', subject: 'TIK', teacher: 'UT' },
+                { period: 4, time: '09:00-09:40', class: 'IX D', subject: 'IPA', teacher: 'EL' },
+                { period: '-', time: '09:40-10:10', subject: 'ISTIRAHAT', teacher: '', all: true },
+                { period: 5, time: '10:10-10:50', class: 'VII A', subject: 'BK', teacher: 'SH' },
+                { period: 5, time: '10:10-10:50', class: 'VII B', subject: 'BING', teacher: 'AM' },
+                { period: 5, time: '10:10-10:50', class: 'VII C', subject: 'BK', teacher: 'SF' },
+                { period: 5, time: '10:10-10:50', class: 'VII D', subject: 'IPS', teacher: 'MT' },
+                { period: '5-6', time: '10:10-11:30', class: 'VIII A', subject: 'IPA', teacher: 'AS' },
+                { period: '5-6', time: '10:10-11:30', class: 'VIII B', subject: 'BINDO', teacher: 'SR' },
+                { period: '5-6', time: '10:10-11:30', class: 'VIII C', subject: 'PKN', teacher: 'NP' },
+                { period: '5-6', time: '10:10-11:30', class: 'VIII D', subject: 'MTK', teacher: 'HB' },
+                { period: '5-6', time: '10:10-11:30', class: 'IX A', subject: 'IPA', teacher: 'KU' },
+                { period: '5-6', time: '10:10-11:30', class: 'IX B', subject: 'PAI', teacher: 'ST' },
+                { period: '5-7', time: '10:10-12:10', class: 'IX C', subject: 'TIK', teacher: 'UT' },
+                { period: '5-6', time: '10:10-11:30', class: 'IX D', subject: 'IPA', teacher: 'EL' },
+                { period: '6-7', time: '10:50-12:10', class: 'VII A', subject: 'IPA', teacher: 'KU' },
+                { period: '6-7', time: '10:50-12:10', class: 'VII B', subject: 'BING', teacher: 'AM' },
+                { period: '6-7', time: '10:50-12:10', class: 'VII C', subject: 'PKN', teacher: 'NP' },
+                { period: '6-7', time: '10:50-12:10', class: 'VII D', subject: 'IPS', teacher: 'MT' },
+                { period: '6-7', time: '10:50-12:10', class: 'VIII A', subject: 'P5 PRJK', teacher: 'P5' },
+                { period: '6-7', time: '10:50-12:10', class: 'VIII B', subject: 'P5 PRJK', teacher: 'P5' },
+                { period: '6-7', time: '10:50-12:10', class: 'VIII C', subject: 'P5 PRJK', teacher: 'P5' },
+                { period: '6-7', time: '10:50-12:10', class: 'VIII D', subject: 'P5 PRJK', teacher: 'P5' },
+                { period: 7, time: '11:30-12:10', class: 'IX A', subject: 'S&P', teacher: 'AJ' },
+                { period: 7, time: '11:30-12:10', class: 'IX B', subject: 'IPS', teacher: 'MS' },
+                { period: 7, time: '11:30-12:10', class: 'IX D', subject: 'BK', teacher: 'SH' },
+                { period: '-', time: '12:10-13:10', subject: 'SHOLAT', teacher: '', all: true },
+            ],
+            'Selasa': [
+                { period: '-', time: '07:00-07:15', subject: 'APEL PAGI', teacher: '', all: true },
+                { period: '1-3', time: '07:15-09:15', class: 'VII A', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-3', time: '07:15-09:15', class: 'VII B', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-3', time: '07:15-09:15', class: 'VII C', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-3', time: '07:15-09:15', class: 'VII D', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-2', time: '07:15-08:35', class: 'VIII A', subject: 'PKN', teacher: 'NP' },
+                { period: '1-2', time: '07:15-08:35', class: 'VIII B', subject: 'IPA', teacher: 'AS' },
+                { period: '1-2', time: '07:15-08:35', class: 'VIII C', subject: 'PJOK', teacher: 'SM' },
+                { period: '1-2', time: '07:15-08:35', class: 'VIII D', subject: 'BING', teacher: 'NL' },
+                { period: '1-2', time: '07:15-08:35', class: 'IX A', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-2', time: '07:15-08:35', class: 'IX B', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-2', time: '07:15-08:35', class: 'IX C', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-2', time: '07:15-08:35', class: 'IX D', subject: 'PRJK P5', teacher: 'P5' },
+                { period: 3, time: '08:35-09:15', class: 'VIII A', subject: 'BING', teacher: 'AM' },
+                { period: 3, time: '08:35-09:15', class: 'VIII B', subject: 'IPS', teacher: 'MS' },
+                { period: 3, time: '08:35-09:15', class: 'VIII C', subject: 'IPS', teacher: 'MT' },
+                { period: 3, time: '08:35-09:15', class: 'VIII D', subject: 'BING', teacher: 'NL' },
+                { period: 3, time: '08:35-09:15', class: 'IX A', subject: 'S&P', teacher: 'AJ' },
+                { period: 3, time: '08:35-09:15', class: 'IX B', subject: 'PJOK', teacher: 'SG' },
+                { period: 3, time: '08:35-09:15', class: 'IX C', subject: 'PKN', teacher: 'DW' },
+                { period: 3, time: '08:35-09:15', class: 'IX D', subject: 'TIK', teacher: 'UT' },
+                { period: '4-5', time: '09:15-11:05', class: 'VII A', subject: 'PKN', teacher: 'NP' },
+                { period: '4-5', time: '09:15-11:05', class: 'VII B', subject: 'IPA', teacher: 'KU' },
+                { period: '4-5', time: '09:15-11:05', class: 'VII C', subject: 'TIK', teacher: 'RK' },
+                { period: '4-5', time: '09:15-11:05', class: 'VII D', subject: 'S&P', teacher: 'AJ' },
+                { period: '4-5', time: '09:15-11:05', class: 'VIII A', subject: 'BING', teacher: 'AM' },
+                { period: '4-5', time: '09:15-11:05', class: 'VIII B', subject: 'IPS', teacher: 'MS' },
+                { period: '4-5', time: '09:15-11:05', class: 'VIII C', subject: 'IPS', teacher: 'MT' },
+                { period: '4-5', time: '09:15-11:05', class: 'VIII D', subject: 'IPA', teacher: 'AS' },
+                { period: '4-5', time: '09:15-11:05', class: 'IX A', subject: 'MTK', teacher: 'HB' },
+                { period: '4-5', time: '09:15-11:05', class: 'IX B', subject: 'TIK', teacher: 'UT' },
+                { period: '4-5', time: '09:15-11:05', class: 'IX C', subject: 'BIND', teacher: 'SL' },
+                { period: '4-5', time: '09:15-11:05', class: 'IX D', subject: 'PAI', teacher: 'ST' },
+                { period: '-', time: '09:55-10:25', subject: 'ISTIRAHAT', teacher: '', all: true },
+                { period: '6-7', time: '11:05-12:25', class: 'VII A', subject: 'BIND', teacher: 'SB' },
+                { period: '6-7', time: '11:05-12:25', class: 'VII B', subject: 'S&P', teacher: 'AJ' },
+                { period: '6-7', time: '11:05-12:25', class: 'VII C', subject: 'PAI', teacher: 'TS' },
+                { period: '6-7', time: '11:05-12:25', class: 'VII D', subject: 'MTK', teacher: 'NW' },
+                { period: '6-7', time: '11:05-12:25', class: 'VIII A', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '6-7', time: '11:05-12:25', class: 'VIII B', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '6-7', time: '11:05-12:25', class: 'VIII C', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '6-7', time: '11:05-12:25', class: 'VIII D', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '6-7', time: '11:05-12:25', class: 'IX A', subject: 'IPA', teacher: 'KU' },
+                { period: '6-7', time: '11:05-12:25', class: 'IX B', subject: 'IPA', teacher: 'EL' },
+                { period: '6-7', time: '11:05-12:25', class: 'IX C', subject: 'MTK', teacher: 'HB' },
+                { period: '6-7', time: '11:05-12:25', class: 'IX D', subject: 'IPS', teacher: 'MS' },
+                { period: '-', time: '12:25-13:10', subject: 'SHOLAT', teacher: '', all: true },
+            ],
+            // Data untuk hari Rabu, Kamis, Jumat, Sabtu tetap sama, hanya ditambahkan 'period'
+            'Rabu': [
+                { period: '-', time: '07:00-07:15', subject: 'APEL PAGI', all: true },
+                { period: '1-3', time: '07:15-09:15', class: 'VII A', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-3', time: '07:15-09:15', class: 'VII B', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-3', time: '07:15-09:15', class: 'VII C', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-3', time: '07:15-09:15', class: 'VII D', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-2', time: '07:15-08:35', class: 'VIII A', subject: 'PAI', teacher: 'BG' },
+                { period: '1-2', time: '07:15-08:35', class: 'VIII B', subject: 'MTK', teacher: 'NW' },
+                { period: '1-2', time: '07:15-08:35', class: 'VIII C', subject: 'PJOK', teacher: 'SM' },
+                { period: '1-2', time: '07:15-08:35', class: 'VIII D', subject: 'PKN', teacher: 'NP' },
+                { period: '1-2', time: '07:15-08:35', class: 'IX A', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-2', time: '07:15-08:35', class: 'IX B', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-2', time: '07:15-08:35', class: 'IX C', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-2', time: '07:15-08:35', class: 'IX D', subject: 'PRJK P5', teacher: 'P5' },
+                { period: 3, time: '08:35-09:15', class: 'VIII A', subject: 'IPS', teacher: 'MT' },
+                { period: 3, time: '08:35-09:15', class: 'VIII B', subject: 'SENI', teacher: 'BG1' },
+                { period: 3, time: '08:35-09:15', class: 'VIII C', subject: 'BING', teacher: 'AM' },
+                { period: 3, time: '08:35-09:15', class: 'VIII D', subject: 'BINDO', teacher: 'SR' },
+                { period: 3, time: '08:35-09:15', class: 'IX A', subject: 'PAI', teacher: 'ST' },
+                { period: 3, time: '08:35-09:15', class: 'IX B', subject: 'S&P', teacher: 'AJ' },
+                { period: 3, time: '08:35-09:15', class: 'IX C', subject: 'MTK', teacher: 'HB' },
+                { period: 3, time: '08:35-09:15', class: 'IX D', subject: 'PKN', teacher: 'DW' },
+                { period: 4, time: '09:15-09:55', class: 'VII A', subject: 'S&P', teacher: 'AJ' },
+                { period: 4, time: '09:15-09:55', class: 'VII B', subject: 'MTK', teacher: 'RB' },
+                { period: 4, time: '09:15-09:55', class: 'VII C', subject: 'BIND', teacher: 'SB' },
+                { period: 4, time: '09:15-09:55', class: 'VII D', subject: 'IPA', teacher: 'KU' },
+                { period: 4, time: '09:15-09:55', class: 'VIII A', subject: 'IPS', teacher: 'MT' },
+                { period: 4, time: '09:15-09:55', class: 'VIII B', subject: 'SENI', teacher: 'BG1' },
+                { period: 4, time: '09:15-09:55', class: 'VIII C', subject: 'BING', teacher: 'AM' },
+                { period: 4, time: '09:15-09:55', class: 'VIII D', subject: 'BINDO', teacher: 'SR' },
+                { period: 4, time: '09:15-09:55', class: 'IX A', subject: 'PAI', teacher: 'ST' },
+                { period: 4, time: '09:15-09:55', class: 'IX B', subject: 'S&P', teacher: 'AJ' },
+                { period: 4, time: '09:15-09:55', class: 'IX C', subject: 'MTK', teacher: 'HB' },
+                { period: 4, time: '09:15-09:55', class: 'IX D', subject: 'PKN', teacher: 'DW' },
+                { period: '-', time: '09:55-10:25', subject: 'ISTIRAHAT', all: true },
+                { period: 5, time: '10:25-11:05', class: 'VII A', subject: 'S&P', teacher: 'AJ' },
+                { period: 5, time: '10:25-11:05', class: 'VII B', subject: 'MTK', teacher: 'RB' },
+                { period: 5, time: '10:25-11:05', class: 'VII C', subject: 'BIND', teacher: 'SB' },
+                { period: 5, time: '10:25-11:05', class: 'VII D', subject: 'IPA', teacher: 'KU' },
+                { period: 5, time: '10:25-11:05', class: 'VIII A', subject: 'IPS', teacher: 'MT' },
+                { period: 5, time: '10:25-11:05', class: 'VIII B', subject: 'BING', teacher: 'AM' },
+                { period: 5, time: '10:25-11:05', class: 'VIII C', subject: 'BK', teacher: 'SF' },
+                { period: 5, time: '10:25-11:05', class: 'VIII D', subject: 'BINDO', teacher: 'SR' },
+                { period: 5, time: '10:25-11:05', class: 'IX A', subject: 'BIND', teacher: 'SL' },
+                { period: 5, time: '10:25-11:05', class: 'IX B', subject: 'IPS', teacher: 'MS' },
+                { period: 5, time: '10:25-11:05', class: 'IX C', subject: 'PAI', teacher: 'ST' },
+                { period: 5, time: '10:25-11:05', class: 'IX D', subject: 'BING', teacher: 'NL' },
+                { period: '6-7', time: '11:05-12:25', class: 'VII A', subject: 'IPA', teacher: 'KU' },
+                { period: '6-7', time: '11:05-12:25', class: 'VII B', subject: 'TIK', teacher: 'RK' },
+                { period: '6-7', time: '11:05-12:25', class: 'VII C', subject: 'S&P', teacher: 'AJ' },
+                { period: '6-7', time: '11:05-12:25', class: 'VII D', subject: 'PKN', teacher: 'NP' },
+                { period: '6-7', time: '11:05-12:25', class: 'VIII A', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '6-7', time: '11:05-12:25', class: 'VIII B', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '6-7', time: '11:05-12:25', class: 'VIII C', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '6-7', time: '11:05-12:25', class: 'VIII D', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '6-7', time: '11:05-12:25', class: 'IX A', subject: 'BIND', teacher: 'SL' },
+                { period: '6-7', time: '11:05-12:25', class: 'IX B', subject: 'IPS', teacher: 'MS' },
+                { period: 6, time: '11:05-11:45', class: 'IX C', subject: 'PAI', teacher: 'ST' },
+                { period: 7, time: '11:45-12:25', class: 'IX C', subject: 'BK', teacher: 'SH' },
+                { period: '6-7', time: '11:05-12:25', class: 'IX D', subject: 'BING', teacher: 'NL' },
+                { period: '-', time: '12:25-13:10', subject: 'SHOLAT', all: true }
+            ],
+            'Kamis': [
+                { period: '-', time: '07:00-07:15', subject: 'APEL PAGI', all: true },
+                { period: '1-2', time: '07:15-08:35', class: 'VII A', subject: 'PJOK', teacher: 'SM' },
+                { period: '1-2', time: '07:15-08:35', class: 'VII B', subject: 'BIND', teacher: 'SB' },
+                { period: '1-2', time: '07:15-08:35', class: 'VII C', subject: 'MTK', teacher: 'RB' },
+                { period: '1-2', time: '07:15-08:35', class: 'VII D', subject: 'TIK', teacher: 'RK' },
+                { period: '1-2', time: '07:15-08:35', class: 'VIII A', subject: 'MTK', teacher: 'NW' },
+                { period: '1-2', time: '07:15-08:35', class: 'VIII B', subject: 'BING', teacher: 'NL' },
+                { period: '1-2', time: '07:15-08:35', class: 'VIII C', subject: 'IPA', teacher: 'AS' },
+                { period: '1-2', time: '07:15-08:35', class: 'VIII D', subject: 'MTK', teacher: 'HB' },
+                { period: '1-2', time: '07:15-08:35', class: 'IX A', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-2', time: '07:15-08:35', class: 'IX B', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-2', time: '07:15-08:35', class: 'IX C', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-2', time: '07:15-08:35', class: 'IX D', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '3-4', time: '08:35-09:55', class: 'VII A', subject: 'MTK', teacher: 'RB' },
+                { period: '3-4', time: '08:35-09:55', class: 'VII B', subject: 'BIND', teacher: 'SB' },
+                { period: '3-4', time: '08:35-09:55', class: 'VII C', subject: 'IPA', teacher: 'KU' },
+                { period: '3-4', time: '08:35-09:55', class: 'VII D', subject: 'PJOK', teacher: 'SM' },
+                { period: '3-4', time: '08:35-09:55', class: 'VIII A', subject: 'TIK', teacher: 'RK' },
+                { period: '3-4', time: '08:35-09:55', class: 'VIII B', subject: 'BINDO', teacher: 'SR' },
+                { period: '3-4', time: '08:35-09:55', class: 'VIII C', subject: 'BING', teacher: 'NL' },
+                { period: '3-4', time: '08:35-09:55', class: 'VIII D', subject: 'BK', teacher: 'SF' },
+                { period: '3-4', time: '08:35-09:55', class: 'IX A', subject: 'PKN', teacher: 'DW' },
+                { period: '3-4', time: '08:35-09:55', class: 'IX B', subject: 'BIND', teacher: 'SL' },
+                { period: '3-4', time: '08:35-09:55', class: 'IX C', subject: 'IPA', teacher: 'EL' },
+                { period: '3-4', time: '08:35-09:55', class: 'IX D', subject: 'PJOK', teacher: 'SG' },
+                { period: '-', time: '09:55-10:25', subject: 'ISTIRAHAT', all: true },
+                { period: '5-7', time: '10:25-12:25', class: 'VII A', subject: 'BING', teacher: 'AM' },
+                { period: '5-6', time: '10:25-11:45', class: 'VII B', subject: 'PKN', teacher: 'NP' },
+                { period: 7, time: '11:45-12:25', class: 'VII B', subject: 'IPA', teacher: 'KU' },
+                { period: '5-7', time: '10:25-12:25', class: 'VII C', subject: 'IPS', teacher: 'MT' },
+                { period: '5-7', time: '10:25-12:25', class: 'VII D', subject: 'BIND', teacher: 'SB' },
+                { period: 5, time: '10:25-11:05', class: 'VIII A', subject: 'BK', teacher: 'SF' },
+                { period: '6-7', time: '11:05-12:25', class: 'VIII A', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '5-6', time: '10:25-11:45', class: 'VIII B', subject: 'BINDO', teacher: 'SR' },
+                { period: 7, time: '11:45-12:25', class: 'VIII B', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '5-6', time: '10:25-11:45', class: 'VIII C', subject: 'MTK', teacher: 'NW' },
+                { period: 7, time: '11:45-12:25', class: 'VIII C', subject: 'PRJK P5', teacher: 'P5' },
+                { period: 5, time: '10:25-11:05', class: 'VIII D', subject: 'SENI', teacher: 'BG1' },
+                { period: '6-7', time: '11:05-12:25', class: 'VIII D', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '5-7', time: '10:25-12:25', class: 'IX A', subject: 'IPS', teacher: 'MS' },
+                { period: '5-7', time: '10:25-12:25', class: 'IX B', subject: 'MTK', teacher: 'HB' },
+                { period: '5-7', time: '10:25-12:25', class: 'IX C', subject: 'BING', teacher: 'NL' },
+                { period: '5-7', time: '10:25-12:25', class: 'IX D', subject: 'BIND', teacher: 'SL' },
+                { period: '-', time: '12:25-13:10', subject: 'SHOLAT', all: true }
+            ],
+            'Jumat': [
+                { period: '-', time: '06:30-07:30', subject: 'SENAM, KERJA BAKTI, PENGAJIAN', all: true },
+                { period: '1-2', time: '07:30-08:50', class: 'VII A', subject: 'BIND', teacher: 'SB' },
+                { period: '1-2', time: '07:30-08:50', class: 'VII B', subject: 'PJOK', teacher: 'SM' },
+                { period: '1-2', time: '07:30-08:50', class: 'VII C', subject: 'BING', teacher: 'AM' },
+                { period: '1-2', time: '07:30-08:50', class: 'VII D', subject: 'MTK', teacher: 'NW' },
+                { period: '1-2', time: '07:30-08:50', class: 'VIII A', subject: 'BINDO', teacher: 'SR' },
+                { period: '1-2', time: '07:30-08:50', class: 'VIII B', subject: 'IPA', teacher: 'AS' },
+                { period: '1-2', time: '07:30-08:50', class: 'VIII C', subject: 'PKN', teacher: 'NP' },
+                { period: '1-2', time: '07:30-08:50', class: 'VIII D', subject: 'PAI', teacher: 'BG' },
+                { period: '1-2', time: '07:30-08:50', class: 'IX A', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-2', time: '07:30-08:50', class: 'IX B', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-2', time: '07:30-08:50', class: 'IX C', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-2', time: '07:30-08:50', class: 'IX D', subject: 'PRJK P5', teacher: 'P5' },
+                { period: 3, time: '08:50-09:30', class: 'VII A', subject: 'BIND', teacher: 'SB' },
+                { period: 3, time: '08:50-09:30', class: 'VII B', subject: 'IPS', teacher: 'MT' },
+                { period: 3, time: '08:50-09:30', class: 'VII C', subject: 'BING', teacher: 'AM' },
+                { period: 3, time: '08:50-09:30', class: 'VII D', subject: 'BK', teacher: 'SF' },
+                { period: 3, time: '08:50-09:30', class: 'VIII A', subject: 'P5 PRJK', teacher: 'P5' },
+                { period: 3, time: '08:50-09:30', class: 'VIII B', subject: 'P5 PRJK', teacher: 'P5' },
+                { period: 3, time: '08:50-09:30', class: 'VIII C', subject: 'P5 PRJK', teacher: 'P5' },
+                { period: 3, time: '08:50-09:30', class: 'VIII D', subject: 'P5 PRJK', teacher: 'P5' },
+                { period: 3, time: '08:50-09:30', class: 'IX A', subject: 'BING', teacher: 'NL' },
+                { period: 3, time: '08:50-09:30', class: 'IX B', subject: 'BIND', teacher: 'SL' },
+                { period: 3, time: '08:50-09:30', class: 'IX C', subject: 'IPS', teacher: 'MS' },
+                { period: 3, time: '08:50-09:30', class: 'IX D', subject: 'MTK', teacher: 'HB' },
+                { period: '-', time: '09:30-09:50', subject: 'ISTIRAHAT', all: true },
+                { period: '4-5', time: '09:50-11:10', class: 'VII A', subject: 'PAI', teacher: 'TS' },
+                { period: '4-5', time: '09:50-11:10', class: 'VII B', subject: 'IPS', teacher: 'MT' },
+                { period: '4-5', time: '09:50-11:10', class: 'VII C', subject: 'MTK', teacher: 'RB' },
+                { period: '4-5', time: '09:50-11:10', class: 'VII D', subject: 'BIND', teacher: 'SB' },
+                { period: '4-5', time: '09:50-11:10', class: 'VIII A', subject: 'IPA', teacher: 'AS' },
+                { period: '4-5', time: '09:50-11:10', class: 'VIII B', subject: 'MTK', teacher: 'NW' },
+                { period: '4-5', time: '09:50-11:10', class: 'VIII C', subject: 'BINDO', teacher: 'SR' },
+                { period: '4-5', time: '09:50-11:10', class: 'VIII D', subject: 'TIK', teacher: 'RK' },
+                { period: '4-5', time: '09:50-11:10', class: 'IX A', subject: 'BING', teacher: 'NL' },
+                { period: '4-5', time: '09:50-11:10', class: 'IX B', subject: 'BIND', teacher: 'SL' },
+                { period: '4-5', time: '09:50-11:10', class: 'IX C', subject: 'IPS', teacher: 'MS' },
+                { period: '4-5', time: '09:50-11:10', class: 'IX D', subject: 'MTK', teacher: 'HB' }
+            ],
+            'Sabtu': [
+                { period: '-', time: '07:00-07:15', subject: 'APEL PAGI', all: true },
+                { period: '1-2', time: '07:15-08:35', class: 'VII A', subject: 'TIK', teacher: 'RK' },
+                { period: '1-2', time: '07:15-08:35', class: 'VII B', subject: 'MTK', teacher: 'RB' },
+                { period: '1-2', time: '07:15-08:35', class: 'VII C', subject: 'PJOK', teacher: 'SM' },
+                { period: '1-2', time: '07:15-08:35', class: 'VII D', subject: 'PAI', teacher: 'TS' },
+                { period: '1-2', time: '07:15-08:35', class: 'VIII A', subject: 'SENI', teacher: 'ST1' },
+                { period: '1-2', time: '07:15-08:35', class: 'VIII B', subject: 'BINDO', teacher: 'SR' },
+                { period: '1-2', time: '07:15-08:35', class: 'VIII C', subject: 'MTK', teacher: 'NW' },
+                { period: '1-2', time: '07:15-08:35', class: 'VIII D', subject: 'IPA', teacher: 'AS' },
+                { period: '1-2', time: '07:15-08:35', class: 'IX A', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-2', time: '07:15-08:35', class: 'IX B', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-2', time: '07:15-08:35', class: 'IX C', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '1-2', time: '07:15-08:35', class: 'IX D', subject: 'PRJK P5', teacher: 'P5' },
+                { period: '3-4', time: '08:35-09:55', class: 'VII A', subject: 'MTK', teacher: 'RB' },
+                { period: '3-4', time: '08:35-09:55', class: 'VII B', subject: 'PAI', teacher: 'TS' },
+                { period: '3-4', time: '08:35-09:55', class: 'VII C', subject: 'BIND', teacher: 'SB' },
+                { period: '3-4', time: '08:35-09:55', class: 'VII D', subject: 'IPA', teacher: 'KU' },
+                { period: '3-4', time: '08:35-09:55', class: 'VIII A', subject: 'MTK', teacher: 'NW' },
+                { period: '3-4', time: '08:35-09:55', class: 'VIII B', subject: 'BINDO', teacher: 'SR' },
+                { period: '3-4', time: '08:35-09:55', class: 'VIII C', subject: 'TIK', teacher: 'RK' },
+                { period: '3-4', time: '08:35-09:55', class: 'VIII D', subject: 'PJOK', teacher: 'SM' },
+                { period: '3-4', time: '08:35-09:55', class: 'IX A', subject: 'BIND', teacher: 'SL' },
+                { period: '3-4', time: '08:35-09:55', class: 'IX B', subject: 'IPA', teacher: 'EL' },
+                { period: '3-4', time: '08:35-09:55', class: 'IX C', subject: 'PJOK', teacher: 'SG' },
+                { period: '3-4', time: '08:35-09:55', class: 'IX D', subject: 'MTK', teacher: 'HB' },
+                { period: '-', time: '09:55-10:25', subject: 'ISTIRAHAT', all: true },
+                { period: '5-7', time: '10:25-12:25', class: 'VII A', subject: 'IPS', teacher: 'MT' },
+                { period: 5, time: '10:25-11:05', class: 'VII B', subject: 'BK', teacher: 'SH' },
+                { period: '6-7', time: '11:05-12:25', class: 'VII B', subject: 'BIND', teacher: 'SB' },
+                { period: '5-6', time: '10:25-11:45', class: 'VII C', subject: 'BIND', teacher: 'SB' },
+                { period: 7, time: '11:45-12:25', class: 'VII C', subject: 'IPA', teacher: 'KU' },
+                { period: '5-7', time: '10:25-12:25', class: 'VII D', subject: 'BING', teacher: 'AM' },
+                { period: '5-7', time: '10:25-12:25', class: 'VIII A', subject: 'BINDO', teacher: 'SR' },
+                { period: 5, time: '10:25-11:05', class: 'VIII B', subject: 'BK', teacher: 'SF' },
+                { period: '6-7', time: '11:05-12:25', class: 'VIII B', subject: 'SENI', teacher: 'ST1' },
+                { period: '5-6', time: '10:25-11:45', class: 'VIII C', subject: 'IPA', teacher: 'AS' },
+                { period: 7, time: '11:45-12:25', class: 'VIII C', subject: 'PAI', teacher: 'BG' },
+                { period: '5-7', time: '10:25-12:25', class: 'VIII D', subject: 'IPS', teacher: 'MS' },
+                { period: '5-7', time: '10:25-12:25', class: 'IX A', subject: 'MTK', teacher: 'HB' },
+                { period: '5-7', time: '10:25-12:25', class: 'IX B', subject: 'BING', teacher: 'NL' },
+                { period: '5-6', time: '10:25-11:45', class: 'IX C', subject: 'BIND', teacher: 'SL' },
+                { period: 7, time: '11:45-12:25', class: 'IX C', subject: 'IPA', teacher: 'EL' },
+                { period: '5-7', time: '10:25-12:25', class: 'IX D', subject: 'S&P', teacher: 'AJ' },
+                { period: '-', time: '12:25-13:10', subject: 'SHOLAT', all: true }
+            ],
+        };
+
+        const classList = [...new Set(Object.values(scheduleData).flat().map(item => item.class).filter(Boolean))].sort();
+
+        // --- DOM ELEMENTS ---
+        const clockElement = document.getElementById('live-clock');
+        const dayElement = document.getElementById('current-day');
+        const currentSubjectElement = document.getElementById('current-subject');
+        const currentPeriodElement = document.getElementById('current-period');
+        const classSelector = document.getElementById('class-selector');
+        const scheduleContainer = document.getElementById('schedule-container');
+        const apiKeyInput = document.getElementById('api-key-input');
+        const saveApiKeyButton = document.getElementById('save-api-key');
+        const chatInput = document.getElementById('chat-input');
+        const sendChatButton = document.getElementById('send-chat');
+        const chatHistory = document.getElementById('chat-history');
+        const geminiLoader = document.getElementById('gemini-response-loader');
+        
+        // --- FUNCTIONS ---
+
+        function padZero(num) { return num.toString().padStart(2, '0'); }
+        function parseTime(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 60 + minutes;
+        }
+
+        function renderSchedule(selectedClass, now) {
+            const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const currentDayName = dayNames[now.getDay()];
+            
+            const daySchedule = scheduleData[currentDayName] || [];
+            const filteredSchedule = daySchedule
+                .filter(item => item.all || item.class === selectedClass)
+                .sort((a, b) => parseTime(a.time.split('-')[0]) - parseTime(b.time.split('-')[0]));
+
+            scheduleContainer.innerHTML = '';
+
+            if (filteredSchedule.length === 0) {
+                scheduleContainer.innerHTML = `<div class="col-span-full text-center p-10 bg-gray-800 rounded-lg"><p class="text-gray-400">Tidak ada jadwal untuk hari ini.</p></div>`;
+                return;
+            }
+
+            filteredSchedule.forEach(item => {
+                const card = document.createElement('div');
+                card.id = `schedule-${item.time}-${item.subject.replace(/\s/g, '')}`;
+                card.className = 'schedule-card bg-gray-800 rounded-lg p-4 shadow-md border border-gray-700 flex flex-col justify-between';
+                
+                const teacherName = teacherData[item.teacher] || item.teacher || ' ';
+
+                card.innerHTML = `
+                    <div>
+                        <div class="flex justify-between items-baseline mb-2">
+                            <p class="font-bold text-lg text-white">${item.subject}</p>
+                            <p class="font-mono text-sm text-gray-400">${item.time}</p>
+                        </div>
+                        <p class="text-sm text-gray-300">${teacherName}</p>
+                    </div>
+                    <p class="text-right font-semibold text-blue-400 mt-2">Jam Ke-${item.period}</p>
+                `;
+                scheduleContainer.appendChild(card);
+            });
+        }
+        
+        function updateTimeAndSchedule() {
+            const now = new Date();
+            const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            
+            const currentDayName = dayNames[now.getDay()];
+            const currentMinutes = now.getHours() * 60 + now.getMinutes();
+            const selectedClass = classSelector.value;
+
+            clockElement.textContent = `${padZero(now.getHours())}:${padZero(now.getMinutes())}:${padZero(now.getSeconds())}`;
+            dayElement.textContent = `${currentDayName}, ${now.getDate()} ${monthNames[now.getMonth()]} ${now.getFullYear()}`;
+
+            const daySchedule = scheduleData[currentDayName] || [];
+            const currentActivity = daySchedule.find(item => {
+                const [startTime, endTime] = item.time.split('-').map(parseTime);
+                return currentMinutes >= startTime && currentMinutes < endTime && (item.all || item.class === selectedClass);
+            });
+
+            document.querySelectorAll('.highlight-card').forEach(card => card.classList.remove('highlight-card'));
+            
+            if (currentActivity) {
+                currentSubjectElement.textContent = currentActivity.subject;
+                currentPeriodElement.textContent = currentActivity.period;
+                const currentCard = document.getElementById(`schedule-${currentActivity.time}-${currentActivity.subject.replace(/\s/g, '')}`);
+                if (currentCard) {
+                    currentCard.classList.add('highlight-card');
+                }
+            } else {
+                currentSubjectElement.textContent = 'Waktu Luang';
+                currentPeriodElement.textContent = '-';
+            }
+        }
+
+        function appendToChat(message, sender) {
+            const bubble = document.createElement('div');
+            bubble.className = `flex ${sender === 'user' ? 'justify-end' : 'justify-start'}`;
+            
+            const content = document.createElement('div');
+            content.className = `${sender === 'user' ? 'chat-bubble-user' : 'chat-bubble-gemini'} rounded-lg px-4 py-2 max-w-xs break-words`;
+            content.textContent = message;
+
+            bubble.appendChild(content);
+            chatHistory.appendChild(bubble);
+            chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        async function handleChat() {
+            const userQuery = chatInput.value.trim();
+            if (!userQuery) return;
+
+            const apiKey = localStorage.getItem('geminiApiKey');
+            if (!apiKey) {
+                appendToChat("Silakan masukkan dan simpan API Key Gemini Anda terlebih dahulu.", "gemini");
+                return;
+            }
+
+            appendToChat(userQuery, 'user');
+            chatInput.value = '';
+            geminiLoader.classList.remove('hidden');
+            geminiLoader.classList.add('flex');
+            sendChatButton.disabled = true;
+
+            const now = new Date();
+            const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const currentDayName = dayNames[now.getDay()];
+            const currentTime = `${padZero(now.getHours())}:${padZero(now.getMinutes())}`;
+
+            const contextPrompt = `
+                Anda adalah asisten AI untuk jadwal pelajaran SMPN 2 Ampana Kota.
+                Tugas Anda adalah menjawab pertanyaan siswa berdasarkan data yang diberikan.
+                Jawaban harus singkat, jelas, dan dalam Bahasa Indonesia.
+
+                KONTEKS SAAT INI:
+                - Hari: ${currentDayName}
+                - Jam: ${currentTime}
+
+                DATA JADWAL (JSON):
+                ${JSON.stringify(scheduleData)}
+
+                DATA GURU (JSON, key adalah kode guru, value adalah nama lengkap):
+                ${JSON.stringify(teacherData)}
+
+                ---
+                PERTANYAAN SISWA: "${userQuery}"
+                ---
+                JAWABAN ANDA:
+            `;
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{ parts: [{ text: contextPrompt }] }]
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error.message || `HTTP error! status: ${response.status}`);
+                }
+
+                const result = await response.json();
+                const geminiResponse = result.candidates[0].content.parts[0].text;
+                appendToChat(geminiResponse, 'gemini');
+
+            } catch (error) {
+                console.error("Error calling Gemini API:", error);
+                appendToChat(`Maaf, terjadi kesalahan: ${error.message}. Pastikan API Key Anda benar dan coba lagi.`, "gemini");
+            } finally {
+                geminiLoader.classList.add('hidden');
+                geminiLoader.classList.remove('flex');
+                sendChatButton.disabled = false;
+            }
+        }
+
+        function init() {
+            classList.forEach(className => {
+                const option = document.createElement('option');
+                option.value = className;
+                option.textContent = className;
+                classSelector.appendChild(option);
+            });
+
+            const savedApiKey = localStorage.getItem('geminiApiKey');
+            if (savedApiKey) {
+                apiKeyInput.value = savedApiKey;
+                chatInput.disabled = false;
+                sendChatButton.disabled = false;
+                appendToChat("API Key ditemukan. Anda bisa mulai bertanya.", "gemini");
+            }
+
+            saveApiKeyButton.addEventListener('click', () => {
+                const key = apiKeyInput.value.trim();
+                if (key) {
+                    localStorage.setItem('geminiApiKey', key);
+                    chatInput.disabled = false;
+                    sendChatButton.disabled = false;
+                    alert('API Key berhasil disimpan di browser Anda!');
+                    appendToChat("API Key berhasil disimpan. Silakan mulai bertanya.", "gemini");
+                } else {
+                    alert('API Key tidak boleh kosong.');
+                }
+            });
+
+            sendChatButton.addEventListener('click', handleChat);
+            chatInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    handleChat();
+                }
+            });
+
+            classSelector.addEventListener('change', () => {
+                const now = new Date();
+                renderSchedule(classSelector.value, now);
+                updateTimeAndSchedule();
+            });
+
+            const now = new Date();
+            renderSchedule(classSelector.value, now);
+            updateTimeAndSchedule();
+
+            setInterval(updateTimeAndSchedule, 1000);
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
