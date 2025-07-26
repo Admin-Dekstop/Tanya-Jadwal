@@ -121,8 +121,7 @@
 
     <script>
         // --- PENGATURAN PENTING ---
-        // Ganti teks "MASUKKAN_API_KEY_ANDA_DISINI" dengan Google AI Gemini API Key Anda.
-        // Pastikan kunci dimasukkan di dalam tanda kutip. Contoh: "AbCdEfGhIjKlMnOpQrStUvWxYz".
+        // API Key sudah dimasukkan. Asisten AI siap digunakan.
         const GEMINI_API_KEY = "AIzaSyDUIijYUqNa7zrQ_m3sC44-fopxuIs7eOA";
 
         // --- DATA JADWAL & GURU ---
@@ -625,7 +624,7 @@
 
             // Initial chat message
             appendToChat("Halo! Asisten AI siap membantu. Silakan ajukan pertanyaan mengenai jadwal atau wali kelas.", "gemini");
-            if (!GEMINI_API_KEY || GEMINI_API_KEY === "AIzaSyDUIijYUqNa7zrQ_m3sC44-fopxuIs7eOA") {
+            if (!GEMINI_API_KEY || GEMINI_API_KEY === "MASUKKAN_API_KEY_ANDA_DISINI") {
                  appendToChat("PENTING: Fitur AI belum aktif. Minta pemilik aplikasi untuk memasukkan API Key di dalam kode.", "gemini");
             }
 
